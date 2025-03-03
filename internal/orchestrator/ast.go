@@ -18,7 +18,7 @@ type ASTNode struct {
 func ParseAST(expression string) (*ASTNode, error) {
 	expr := strings.ReplaceAll(expression, " ", "")
 	if expr == "" {
-		return nil, fmt.Errorf("empty expression")
+		return nil, fmt.Errorf("Пустое выражение")
 	}
 	p := &parser{input: expr, pos: 0}
 	node, err := p.parseExpression()
@@ -26,7 +26,7 @@ func ParseAST(expression string) (*ASTNode, error) {
 		return nil, err
 	}
 	if p.pos < len(p.input) {
-		return nil, fmt.Errorf("unexpected token at position %d", p.pos)
+		return nil, fmt.Errorf("Неожиданный токен на месте %d", p.pos)
 	}
 	return node, nil
 }
@@ -110,7 +110,7 @@ func (p *parser) parseFactor() (*ASTNode, error) {
 			return nil, err
 		}
 		if p.peek() != ')' {
-			return nil, fmt.Errorf("missing closing parenthesis")
+			return nil, fmt.Errorf("Нет закрывающей скобки")
 		}
 		p.get()
 		return node, nil
@@ -129,11 +129,11 @@ func (p *parser) parseFactor() (*ASTNode, error) {
 	}
 	token := p.input[start:p.pos]
 	if token == "" {
-		return nil, fmt.Errorf("expected number at position %d", start)
+		return nil, fmt.Errorf("Неожиданное число на месте %d", start)
 	}
 	value, err := strconv.ParseFloat(token, 64)
 	if err != nil {
-		return nil, fmt.Errorf("invalid number %s", token)
+		return nil, fmt.Errorf("Невалидный номер %s", token)
 	}
 	return &ASTNode{
 		IsLeaf: true,
