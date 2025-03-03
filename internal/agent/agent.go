@@ -14,8 +14,8 @@ import (
 )
 
 var (
-	ErrDivisionByZero  = errors.New("division by zero")
-	ErrInvalidOperator = errors.New("invalid operator")
+	ErrDivisionByZero  = errors.New("Деление на ноль")
+	ErrInvalidOperator = errors.New("Невалидный оператор")
 )
 
 type Agent struct {
@@ -42,7 +42,7 @@ func NewAgent() *Agent {
 
 func (a *Agent) Start() {
 	for i := 0; i < a.ComputingPower; i++ {
-		log.Printf("Starting worker %d", i)
+		log.Printf("Стуртующий воркер %d", i)
 		go a.Worker(i)
 	}
 	select {}
@@ -52,7 +52,7 @@ func (a *Agent) Worker(id int) {
 	for {
 		resp, err := http.Get(a.OrchestratorURL + "/internal/task")
 		if err != nil {
-			log.Printf("Worker %d: error getting task: %v", id, err)
+			log.Printf("Воркер %d: ошибка в задаче: %v", id, err)
 			time.Sleep(2 * time.Second)
 			continue
 		}
@@ -76,17 +76,17 @@ func (a *Agent) Worker(id int) {
 		err = json.NewDecoder(resp.Body).Decode(&taskResp)
 		resp.Body.Close()
 		if err != nil {
-			log.Printf("Worker %d: error decoding task: %v", id, err)
+			log.Printf("Воркер %d: Ошибка в декодировании задачи: %v", id, err)
 			time.Sleep(1 * time.Second)
 			continue
 		}
 
 		task := taskResp.Task
-		log.Printf("Worker %d: received task %s: %f %s %f, simulating %d ms", id, task.ID, task.Arg1, task.Operation, task.Arg2, task.OperationTime)
+		log.Printf("Воркер %d: полученное задание %s: %f %s %f, симулирует %d мс", id, task.ID, task.Arg1, task.Operation, task.Arg2, task.OperationTime)
 		time.Sleep(time.Duration(task.OperationTime) * time.Millisecond)
 		result, err := Calculations(task.Operation, task.Arg1, task.Arg2)
 		if err != nil {
-			log.Printf("Worker %d: error computing task %s: %v", id, task.ID, err)
+			log.Printf("Воркер %d: Ошибка в вычислении задачи %s: %v", id, task.ID, err)
 			continue
 		}
 
@@ -99,15 +99,15 @@ func (a *Agent) Worker(id int) {
 		respPost, err := http.Post(a.OrchestratorURL+"/internal/task", "application/json", bytes.NewReader(payloadBytes))
 
 		if err != nil {
-			log.Printf("Worker %d: error posting result for task %s: %v", id, task.ID, err)
+			log.Printf("Воркер %d: Ошибка в записи результата задачи %s: %v", id, task.ID, err)
 			continue
 		}
 
 		if respPost.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(respPost.Body)
-			log.Printf("Worker %d: error response posting result for task %s: %s", id, task.ID, string(body))
+			log.Printf("Воркер %d: Ошибка в записи результата задачи %s: %s", id, task.ID, string(body))
 		} else {
-			log.Printf("Worker %d: successfully completed task %s with result %f", id, task.ID, result)
+			log.Printf("Воркер %d: Успешное выполненеи задачи %s с результатом %f", id, task.ID, result)
 		}
 		respPost.Body.Close()
 	}
