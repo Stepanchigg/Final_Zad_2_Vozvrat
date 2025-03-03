@@ -88,7 +88,7 @@ type Task struct {
 
 func (o *Orchestrator) calculateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, `{"error":"Wrong Method"}`, http.StatusMethodNotAllowed)
+		http.Error(w, `{"error":"Неправильный метод"}`, http.StatusMethodNotAllowed)
 		return
 	}
 	var req struct {
@@ -96,7 +96,7 @@ func (o *Orchestrator) calculateHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil || req.Expression == "" {
-		http.Error(w, `{"error":"Invalid Body"}`, http.StatusUnprocessableEntity)
+		http.Error(w, `{"error":"Невалидное выражение"}`, http.StatusUnprocessableEntity)
 		return
 	}
 	ast, err := ParseAST(req.Expression)
@@ -110,7 +110,7 @@ func (o *Orchestrator) calculateHandler(w http.ResponseWriter, r *http.Request) 
 	expr := &Expression{
 		ID:     exprID,
 		Expr:   req.Expression,
-		Status: "pending",
+		Status: "обрабатывается",
 		AST:    ast,
 	}
 	o.exprStore[exprID] = expr
@@ -124,7 +124,7 @@ func (o *Orchestrator) calculateHandler(w http.ResponseWriter, r *http.Request) 
 
 func (o *Orchestrator) expressionsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, `{"error":"Wrong Method"}`, http.StatusMethodNotAllowed)
+		http.Error(w, `{"error":"Неправильный метод"}`, http.StatusMethodNotAllowed)
 		return
 	}
 	o.mu.Lock()
@@ -132,7 +132,7 @@ func (o *Orchestrator) expressionsHandler(w http.ResponseWriter, r *http.Request
 	exprs := make([]*Expression, 0, len(o.exprStore))
 	for _, expr := range o.exprStore {
 		if expr.AST != nil && expr.AST.IsLeaf {
-			expr.Status = "completed"
+			expr.Status = "завершено"
 			expr.Result = &expr.AST.Value
 		}
 		exprs = append(exprs, expr)
@@ -143,7 +143,7 @@ func (o *Orchestrator) expressionsHandler(w http.ResponseWriter, r *http.Request
 
 func (o *Orchestrator) expressionByIDHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, `{"error":"Wrong Method"}`, http.StatusMethodNotAllowed)
+		http.Error(w, `{"error":"Неправильный метод"}`, http.StatusMethodNotAllowed)
 		return
 	}
 	id := r.URL.Path[len("/api/v1/expressions/"):]
@@ -151,11 +151,11 @@ func (o *Orchestrator) expressionByIDHandler(w http.ResponseWriter, r *http.Requ
 	expr, ok := o.exprStore[id]
 	o.mu.Unlock()
 	if !ok {
-		http.Error(w, `{"error":"Expression not found"}`, http.StatusNotFound)
+		http.Error(w, `{"error":"Выражение не найдено"}`, http.StatusNotFound)
 		return
 	}
 	if expr.AST != nil && expr.AST.IsLeaf {
-		expr.Status = "completed"
+		expr.Status = "завершено"
 		expr.Result = &expr.AST.Value
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -164,19 +164,19 @@ func (o *Orchestrator) expressionByIDHandler(w http.ResponseWriter, r *http.Requ
 
 func (o *Orchestrator) getTaskHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, `{"error":"Wrong Method"}`, http.StatusMethodNotAllowed)
+		http.Error(w, `{"error":"Неправильный метод"}`, http.StatusMethodNotAllowed)
 		return
 	}
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if len(o.taskQueue) == 0 {
-		http.Error(w, `{"error":"No task available"}`, http.StatusNotFound)
+		http.Error(w, `{"error":"Нет доступной задачи"}`, http.StatusNotFound)
 		return
 	}
 	task := o.taskQueue[0]
 	o.taskQueue = o.taskQueue[1:]
 	if expr, exists := o.exprStore[task.ExprID]; exists {
-		expr.Status = "in_progress"
+		expr.Status = "В_процессе"
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{"task": task})
@@ -184,7 +184,7 @@ func (o *Orchestrator) getTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 func (o *Orchestrator) postTaskHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, `{"error":"Wrong Method"}`, http.StatusMethodNotAllowed)
+		http.Error(w, `{"error":"Неправильный метод"}`, http.StatusMethodNotAllowed)
 		return
 	}
 	var req struct {
@@ -193,14 +193,14 @@ func (o *Orchestrator) postTaskHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil || req.ID == "" {
-		http.Error(w, `{"error":"Invalid Body"}`, http.StatusUnprocessableEntity)
+		http.Error(w, `{"error":"Невалидное тело"}`, http.StatusUnprocessableEntity)
 		return
 	}
 	o.mu.Lock()
 	task, ok := o.taskStore[req.ID]
 	if !ok {
 		o.mu.Unlock()
-		http.Error(w, `{"error":"Task not found"}`, http.StatusNotFound)
+		http.Error(w, `{"error":"Задача не найдена"}`, http.StatusNotFound)
 		return
 	}
 	task.Node.IsLeaf = true
@@ -209,13 +209,13 @@ func (o *Orchestrator) postTaskHandler(w http.ResponseWriter, r *http.Request) {
 	if expr, exists := o.exprStore[task.ExprID]; exists {
 		o.scheduleTasks(expr)
 		if expr.AST.IsLeaf {
-			expr.Status = "completed"
+			expr.Status = "завершено"
 			expr.Result = &expr.AST.Value
 		}
 	}
 	o.mu.Unlock()
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"result accepted"}`))
+	w.Write([]byte(`{"status":"результат принят"}`))
 }
 
 func (o *Orchestrator) scheduleTasks(expr *Expression) {
@@ -272,18 +272,18 @@ func (o *Orchestrator) RunServer() error {
 		} else if r.Method == http.MethodPost {
 			o.postTaskHandler(w, r)
 		} else {
-			http.Error(w, `{"error":"Wrong Method"}`, http.StatusMethodNotAllowed)
+			http.Error(w, `{"error":"Неправильный метод"}`, http.StatusMethodNotAllowed)
 		}
 	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, `{"error":"Not Found"}`, http.StatusNotFound)
+		http.Error(w, `{"error":"Не найдено"}`, http.StatusNotFound)
 	})
 	go func() {
 		for {
 			time.Sleep(2 * time.Second)
 			o.mu.Lock()
 			if len(o.taskQueue) > 0 {
-				log.Printf("Pending tasks in queue: %d", len(o.taskQueue))
+				log.Printf("Обрабатываемые задачи в очереди: %d", len(o.taskQueue))
 			}
 			o.mu.Unlock()
 		}
