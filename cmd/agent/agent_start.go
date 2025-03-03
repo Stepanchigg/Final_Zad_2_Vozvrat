@@ -8,6 +8,6 @@ import (
 
 func main() {
 	agent := agent.NewAgent()
-	log.Println("Запускаем агент...")
+	log.Println("Запускаем агент")
 	agent.Start()
 }
