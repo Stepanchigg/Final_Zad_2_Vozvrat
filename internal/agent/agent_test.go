@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 	"errors"
-	"github/stepanchigg/Final_Zad_2_Vozvrat/internal/agent"
 )
 var (
 	ErrDivisionByZero  = errors.New("Деление на ноль")
