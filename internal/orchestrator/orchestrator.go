@@ -19,7 +19,7 @@ type Config struct {
 	TimeDivisions       int
 }
 
-func Configuration() *Config {
+func ConfigFromEnv() *Config {
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -61,7 +61,7 @@ type Orchestrator struct {
 
 func NewOrchestrator() *Orchestrator {
 	return &Orchestrator{
-		Config:    Configuration(),
+		Config:    ConfigFromEnv(),
 		exprStore: make(map[string]*Expression),
 		taskStore: make(map[string]*Task),
 		taskQueue: make([]*Task, 0),
@@ -114,7 +114,7 @@ func (o *Orchestrator) calculateHandler(w http.ResponseWriter, r *http.Request) 
 		AST:    ast,
 	}
 	o.exprStore[exprID] = expr
-	o.Tasks(expr)
+	o.scheduleTasks(expr)
 	o.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
@@ -141,7 +141,7 @@ func (o *Orchestrator) expressionsHandler(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(map[string]interface{}{"expressions": exprs})
 }
 
-func (o *Orchestrator) expressionIDHandler(w http.ResponseWriter, r *http.Request) {
+func (o *Orchestrator) expressionByIDHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, `{"error":"Неправильный метод"}`, http.StatusMethodNotAllowed)
 		return
@@ -207,7 +207,7 @@ func (o *Orchestrator) postTaskHandler(w http.ResponseWriter, r *http.Request) {
 	task.Node.Value = req.Result
 	delete(o.taskStore, req.ID)
 	if expr, exists := o.exprStore[task.ExprID]; exists {
-		o.Tasks(expr)
+		o.scheduleTasks(expr)
 		if expr.AST.IsLeaf {
 			expr.Status = "завершено"
 			expr.Result = &expr.AST.Value
@@ -218,7 +218,7 @@ func (o *Orchestrator) postTaskHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"status":"результат принят"}`))
 }
 
-func (o *Orchestrator) Tasks(expr *Expression) {
+func (o *Orchestrator) scheduleTasks(expr *Expression) {
 	var traverse func(node *ASTNode)
 	traverse = func(node *ASTNode) {
 		if node == nil || node.IsLeaf {
@@ -265,7 +265,7 @@ func (o *Orchestrator) RunServer() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/calculate", o.calculateHandler)
 	mux.HandleFunc("/api/v1/expressions", o.expressionsHandler)
-	mux.HandleFunc("/api/v1/expressions/", o.expressionIDHandler)
+	mux.HandleFunc("/api/v1/expressions/", o.expressionByIDHandler)
 	mux.HandleFunc("/internal/task", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			o.getTaskHandler(w, r)
