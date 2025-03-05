@@ -183,39 +183,53 @@ func (o *Orchestrator) getTaskHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (o *Orchestrator) postTaskHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, `{"error":"Неправильный метод"}`, http.StatusMethodNotAllowed)
-		return
-	}
-	var req struct {
-		ID     string  `json:"id"`
-		Result float64 `json:"result"`
-	}
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil || req.ID == "" {
-		http.Error(w, `{"error":"Невалидное тело"}`, http.StatusUnprocessableEntity)
-		return
-	}
-	o.mu.Lock()
-	task, ok := o.taskStore[req.ID]
-	if !ok {
-		o.mu.Unlock()
-		http.Error(w, `{"error":"Задача не найдена"}`, http.StatusNotFound)
-		return
-	}
-	task.Node.IsLeaf = true
-	task.Node.Value = req.Result
-	delete(o.taskStore, req.ID)
-	if expr, exists := o.exprStore[task.ExprID]; exists {
-		o.scheduleTasks(expr)
-		if expr.AST.IsLeaf {
-			expr.Status = "завершено"
-			expr.Result = &expr.AST.Value
-		}
-	}
-	o.mu.Unlock()
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"результат принят"}`))
+    if r.Method != http.MethodPost {
+        http.Error(w, `{"error":"Неправильный метод"}`, http.StatusMethodNotAllowed)
+        return
+    }
+
+    var req struct {
+        ID     string  `json:"id"`
+        Result float64 `json:"result"`
+    }
+
+    // Декодирование и валидация
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, `{"error":"Невалидное тело"}`, http.StatusUnprocessableEntity)
+        return
+    }
+
+    if req.ID == "" {
+        http.Error(w, `{"error":"Не указан ID задачи"}`, http.StatusUnprocessableEntity)
+        return
+    }
+
+    o.mu.Lock()
+    defer o.mu.Unlock()
+
+    // Поиск задачи
+    task, ok := o.taskStore[req.ID]
+    if !ok {
+        http.Error(w, `{"error":"Задача не найдена"}`, http.StatusNotFound)
+        return
+    }
+
+    // Обновление данных
+    task.Node.IsLeaf = true
+    task.Node.Value = req.Result
+    delete(o.taskStore, req.ID)
+
+    // Обновление статуса выражения
+    if expr, exists := o.exprStore[task.ExprID]; exists {
+        o.scheduleTasks(expr)
+        if expr.AST.IsLeaf {
+            expr.Status = "завершено"
+            expr.Result = &expr.AST.Value
+        }
+    }
+
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte(`{"status":"результат принят"}`))
 }
 
 func (o *Orchestrator) scheduleTasks(expr *Expression) {
