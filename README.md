@@ -150,7 +150,7 @@ cd Final_Zad_2_Vozvrat
 2)Затем запускаем тестирование:
 
 ```bash
-go test ./internal/agent/agent_calculation_test.go
+go test internal/agent/agent_test.go
 ```
 
 3)При успешном прохождение теста должен вывестись ответ:
