@@ -42,7 +42,7 @@ func NewAgent() *Agent {
 
 func (a *Agent) Start() {
 	for i := 0; i < a.ComputingPower; i++ {
-		log.Printf("Стуртующий воркер %d", i)
+		log.Printf("Запускаем воркер %d", i)
 		go a.Worker(i)
 	}
 	select {}
