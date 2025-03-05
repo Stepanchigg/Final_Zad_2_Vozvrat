@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"testing"
 )
-
+var (
+	ErrDivisionByZero  = errors.New("Деление на ноль")
+	ErrInvalidOperator = errors.New("Невалидный оператор")
+)
 func CalculationsForTesting(operation string, a, b float64) (float64, error) {
 	switch operation {
 	case "+":
