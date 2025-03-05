@@ -153,6 +153,6 @@ func Calculations(operation string, a, b float64) (float64, error) {
 		}
 		return a / b, nil
 	default:
-		return 0, fmt.Errorf("invalid operator: %s", operation)
+		return 0, fmt.Errorf("Невалидный оператор: %s", operation)
 	}
 }
